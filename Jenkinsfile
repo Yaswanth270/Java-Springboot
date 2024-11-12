@@ -25,6 +25,7 @@ pipeline {
                         $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=CI-CD-Project \
                         -Dsonar.java.binaries=. \
                         -Dsonar.projectKey=CI-CD-Project
+                        -X
                     '''
                 }
             }
