@@ -1,77 +1,72 @@
 def COLOR_MAP = [
     'SUCCESS': 'good',
     'FAILURE': 'danger'
-    ]
+]
 pipeline {
     agent any
-    tools {
-    maven 'maven'
-  }
-     environment {
-        SCANNER_HOME = tool 'sonar-server'
+    environment {
+        SCANNER_HOME = tool 'sonarqube'
     }
     stages {
         stage('git checkout') {
             steps {
-            git 'https://github.com/Yaswanth270/Java-Springboot'
+                git 'https://github.com/Yaswanth270/Java-Springboot.git'
             }
         }
-         stage('compile') {
+        stage('compile') {
             steps {
-              sh 'mvn compile'
+                sh 'mvn compile'
             }
         }
-         stage('code analysis') {
+        stage('code analysis') {
             steps {
-              withSonarQubeEnv('sonar-server') {
-               sh ''' $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=Java-Springboot \
-               -Dsonar.java.binaries=. \
-               -Dsonar.projectKey=Java-Springboot'''
-              }
+                withSonarQubeEnv('sonar-server') {
+                    sh ''' 
+                        $SCANNER_HOME/bin/sonar-scanner -Dsonar.projectName=CI-CD-Project \
+                        -Dsonar.java.binaries=. \
+                        -Dsonar.projectKey=CI-CD-Project
+                    '''
+                }
             }
         }
         stage('package') {
             steps {
-              sh 'mvn install'
+                sh 'mvn install'
             }
         }
-         stage('docker build') {
+        stage('docker login') {
             steps {
-             script {
-                 withDockerRegistry(credentialsId: 'docker-key', toolName: 'docker') {
-                    sh 'docker build -t java-spring .'
-                  }
-              }
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'Docker', usernameVariable: 'DOCKER_USERNAME', passwordVariable: 'DOCKER_PASSWORD')]) {
+                        sh "echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin"
+                    }
+                }
             }
         }
-         stage('docker push') {
+        stage('docker build') {
             steps {
-             script {
-                withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
-                    sh 'docker tag java-spring yaswanth270/java-spring'
-                    sh 'docker push yaswanth270/java-spring'
-                  }
-              }
+                sh 'docker build -t spring-boot .'
             }
-         }    
+        }
+        stage('docker push') {
+            steps {
+                sh 'docker tag spring-boot yaswanth270/abcd'
+                sh 'docker push yaswanth270/abcd'
+            }
+        }
         stage('docker container') {
             steps {
-             script {
-                   withDockerRegistry(credentialsId: 'docker', toolName: 'docker') {
-                    sh 'docker run -itd --name javaspring-cont -p 8085:8085 java-spring'
-                  }
-              }
+                sh 'docker run -itd -p 8085:8085 spring-boot'
             }
-        }    
-    }	
- 
+        }
+    }
+
     post {
         always {
-            echo 'slack Notification.'
+            echo 'Slack Notification.'
             slackSend channel: '#java-ci-cd-pipeline',
-            color: COLOR_MAP [currentBuild.currentResult],
-            message: "*${currentBuild.currentResult}:* Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URl}"
-            
+                      color: COLOR_MAP[currentBuild.currentResult],
+                      message: "${currentBuild.currentResult}: Job ${env.JOB_NAME} build ${env.BUILD_NUMBER} \n More info at: ${env.BUILD_URL}"
         }
     }
 }
