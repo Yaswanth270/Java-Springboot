@@ -48,7 +48,7 @@ pipeline {
                 sh 'docker build -t spring-boot .'
             }
         }
-        stage('docker push') {
+        stage('docker-push') {
             steps {
                 sh 'docker tag spring-boot yaswanth270/abcd'
                 sh 'docker push yaswanth270/abcd'
